@@ -1,0 +1,11 @@
+[package]
+authors = ["statiolake <statiolake@gmail.com>"]
+name = "tempfile-rs"
+version = "0.1.0"
+
+[dependencies.tempfile-rs]
+path = "."
+
+[dependencies.uuid]
+features = ["v4"]
+version = "0.6.5"
