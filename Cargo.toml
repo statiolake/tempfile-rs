@@ -1,9 +1,9 @@
 [package]
 authors = ["statiolake <statiolake@gmail.com>"]
-name = "tempfile-rs"
+name = "tempfile"
 version = "0.1.0"
 
-[dependencies.tempfile-rs]
+[dependencies.tempfile]
 path = "."
 
 [dependencies.uuid]
