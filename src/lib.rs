@@ -54,6 +54,13 @@ impl TempFile {
             .expect("internal error: tempfile must be Some(_).")
     }
 
+    /// Get current `File` object (mutable).
+    pub fn file_mut(&mut self) -> &mut File {
+        self.file
+            .as_mut()
+            .expect("internal error: tempfile must be Some(_).")
+    }
+
     /// Get current file path.
     pub fn file_path(&self) -> &Path {
         &self.file_path
