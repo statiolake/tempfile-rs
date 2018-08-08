@@ -8,12 +8,33 @@ use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
 
+/// A struct representing temporary file path.
+/// This struct has Drop trait and Drop::drop() removes the file it points to.
+/// So, as long as this struct is passed around the temporary file keeps alive.
+struct TempFileCore {
+    file_path: PathBuf,
+}
+
+/// Drop implementation to remove the temporary file.
+impl Drop for TempFileCore {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.file_path);
+    }
+}
+
 /// A struct representing temporary file.
 /// This struct creates new temporary file when an instance is created, and remove the temporary
 /// file when the instance is to be dropped.
 pub struct TempFile {
+    // file is Option<_> here, because file needs to be closed before it is removed.
     file: Option<File>,
-    file_path: PathBuf,
+    core: TempFileCore,
+}
+
+/// A struct representing CLOSED temporary file.
+/// this struct is created by `close()` method in TempFile.
+pub struct ClosedTempFile {
+    core: TempFileCore,
 }
 
 impl TempFile {
@@ -23,7 +44,7 @@ impl TempFile {
         let file_path = file_path.into();
         File::create(&file_path).map(|file| TempFile {
             file: Some(file),
-            file_path: file_path,
+            core: TempFileCore { file_path },
         })
     }
 
@@ -41,38 +62,43 @@ impl TempFile {
     }
 
     /// Close temporary file.
-    pub fn close(&mut self) {
-        self.file.take();
-    }
-
-    /// Close the temporary file if necessary, and re-open it for reading.
-    pub fn reopen(&mut self) -> io::Result<()> {
-        self.file = Some(File::open(&self.file_path)?);
-        Ok(())
+    pub fn close(self) -> ClosedTempFile {
+        ClosedTempFile {
+            // TempFile implements Drop, so we must clone() here. Sad.
+            core: self.core,
+        }
     }
 
     /// Get current `File` object.
-    pub fn file(&self) -> Option<&File> {
-        self.file.as_ref()
+    pub fn file(&self) -> &File {
+        self.file
+            .as_ref()
+            .expect("internal error: file must be valid.")
     }
 
     /// Get current `File` object (mutable).
-    pub fn file_mut(&mut self) -> Option<&mut File> {
-        self.file.as_mut()
+    pub fn file_mut(&mut self) -> &mut File {
+        self.file
+            .as_mut()
+            .expect("internal error: file must be valid.")
     }
 
     /// Get current file path.
     pub fn file_path(&self) -> &Path {
-        &self.file_path
+        &self.core.file_path
     }
 }
 
-/// Close the temporary file and remove that file.
-impl Drop for TempFile {
-    fn drop(&mut self) {
-        // take the value (drop the file) to close this file.
-        self.file.take();
-        let _ = fs::remove_file(&self.file_path);
+impl ClosedTempFile {
+    pub fn reopen(self) -> io::Result<TempFile> {
+        File::open(&self.core.file_path).map(|file| TempFile {
+            file: Some(file),
+            core: self.core,
+        })
+    }
+
+    pub fn file_path(&self) -> &Path {
+        &self.core.file_path
     }
 }
 
@@ -90,8 +116,9 @@ mod tests {
         let path;
 
         {
-            let mut temp_file = TempFile::new().expect("failed to instantiate TempFile.");
-            temp_file.reopen().expect("reopen failed.");
+            let temp_file = TempFile::new().expect("failed to instantiate TempFile.");
+            let closed = temp_file.close();
+            let temp_file = closed.reopen().expect("reopen failed.");
             path = temp_file.file_path().to_path_buf();
         }
 
