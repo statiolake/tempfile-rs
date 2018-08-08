@@ -12,7 +12,6 @@ use std::path::{Path, PathBuf};
 /// This struct creates new temporary file when an instance is created, and remove the temporary
 /// file when the instance is to be dropped.
 pub struct TempFile {
-    // `file` is Option<_> to drop file at Drop::drop() to close the file.
     file: Option<File>,
     file_path: PathBuf,
 }
@@ -41,24 +40,25 @@ impl TempFile {
         TempFile::in_dir(env::temp_dir())
     }
 
-    /// Close the temporary file, and re-open it for reading.
+    /// Close temporary file.
+    pub fn close(&mut self) {
+        self.file.take();
+    }
+
+    /// Close the temporary file if necessary, and re-open it for reading.
     pub fn reopen(&mut self) -> io::Result<()> {
         self.file = Some(File::open(&self.file_path)?);
         Ok(())
     }
 
     /// Get current `File` object.
-    pub fn file(&self) -> &File {
-        self.file
-            .as_ref()
-            .expect("internal error: tempfile must be Some(_).")
+    pub fn file(&self) -> Option<&File> {
+        self.file.as_ref()
     }
 
     /// Get current `File` object (mutable).
-    pub fn file_mut(&mut self) -> &mut File {
-        self.file
-            .as_mut()
-            .expect("internal error: tempfile must be Some(_).")
+    pub fn file_mut(&mut self) -> Option<&mut File> {
+        self.file.as_mut()
     }
 
     /// Get current file path.
