@@ -51,29 +51,37 @@ impl TempFileBuilder {
     }
 
     /// Sets file path.
-    pub fn file_path(&mut self, file_path: PathBuf) -> &mut TempFileBuilder {
-        self.file_path = file_path;
-        self
+    pub fn file_path(self, file_path: PathBuf) -> TempFileBuilder {
+        TempFileBuilder {
+            file_path: file_path,
+            ..self
+        }
     }
 
     /// Modifies file path whose parent directory to be the specified directory.
-    pub fn with_parent_dir(&mut self, parent_dir: impl Into<PathBuf>) -> &mut TempFileBuilder {
+    pub fn with_parent_dir(self, parent_dir: impl Into<PathBuf>) -> TempFileBuilder {
         let mut file_path = parent_dir.into();
         file_path.push(self.file_path.file_name().unwrap_or(OsStr::new("")));
-        self.file_path(file_path);
-        self
+        TempFileBuilder {
+            file_path: file_path,
+            ..self
+        }
     }
 
     /// Modifies file path to be have the specified file name.
-    pub fn with_file_name(&mut self, file_name: impl AsRef<OsStr>) -> &mut TempFileBuilder {
-        self.file_path.with_file_name(file_name.as_ref());
-        self
+    pub fn with_file_name(self, file_name: impl AsRef<OsStr>) -> TempFileBuilder {
+        TempFileBuilder {
+            file_path: self.file_path.with_file_name(file_name.as_ref()),
+            ..self
+        }
     }
 
     /// Modifies file path to be have the specified file extension.
-    pub fn with_extension(&mut self, ext: impl AsRef<OsStr>) -> &mut TempFileBuilder {
-        self.file_path.with_extension(ext.as_ref());
-        self
+    pub fn with_extension(self, ext: impl AsRef<OsStr>) -> TempFileBuilder {
+        TempFileBuilder {
+            file_path: self.file_path.with_extension(ext.as_ref()),
+            ..self
+        }
     }
 
     /// Builds TempFile instance.
