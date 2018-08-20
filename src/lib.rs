@@ -90,6 +90,7 @@ impl TempFile {
 }
 
 impl ClosedTempFile {
+    /// reopen closed temporary file
     pub fn reopen(self) -> io::Result<TempFile> {
         File::open(&self.core.file_path).map(|file| TempFile {
             file: Some(file),
@@ -97,6 +98,7 @@ impl ClosedTempFile {
         })
     }
 
+    /// file path of this closed temporary file
     pub fn file_path(&self) -> &Path {
         &self.core.file_path
     }
