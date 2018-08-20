@@ -3,6 +3,7 @@ extern crate uuid;
 use uuid::{Uuid, UuidVersion};
 
 use std::env;
+use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -37,28 +38,59 @@ pub struct ClosedTempFile {
     core: TempFileCore,
 }
 
+/// Temporary file builder.
+pub struct TempFileBuilder {
+    file_path: PathBuf,
+}
+
+impl TempFileBuilder {
+    /// Creates a builder instance.
+    pub fn new() -> TempFileBuilder {
+        let file_path = env::temp_dir().join(create_tmp_file_name("temp"));
+        TempFileBuilder { file_path }
+    }
+
+    /// Sets file path.
+    pub fn file_path(&mut self, file_path: PathBuf) -> &mut TempFileBuilder {
+        self.file_path = file_path;
+        self
+    }
+
+    /// Modifies file path whose parent directory to be the specified directory.
+    pub fn with_parent_dir(&mut self, parent_dir: impl Into<PathBuf>) -> &mut TempFileBuilder {
+        let mut file_path = parent_dir.into();
+        file_path.push(self.file_path.file_name().unwrap_or(OsStr::new("")));
+        self.file_path(file_path);
+        self
+    }
+
+    /// Modifies file path to be have the specified file name.
+    pub fn with_file_name(&mut self, file_name: impl AsRef<OsStr>) -> &mut TempFileBuilder {
+        self.file_path.with_file_name(file_name.as_ref());
+        self
+    }
+
+    /// Modifies file path to be have the specified file extension.
+    pub fn with_extension(&mut self, ext: impl AsRef<OsStr>) -> &mut TempFileBuilder {
+        self.file_path.with_extension(ext.as_ref());
+        self
+    }
+
+    /// Builds TempFile instance.
+    pub fn build(self) -> io::Result<TempFile> {
+        TempFile::from_path(self.file_path)
+    }
+}
+
 impl TempFile {
     /// Creates a new instance containing `File` object of the specified path. If the file exists,
     /// then it returns Err.
-    pub fn from_path(file_path: impl Into<PathBuf>) -> io::Result<TempFile> {
+    fn from_path(file_path: impl Into<PathBuf>) -> io::Result<TempFile> {
         let file_path = file_path.into();
         File::create(&file_path).map(|file| TempFile {
             file: Some(file),
             core: TempFileCore { file_path },
         })
-    }
-
-    /// Creates a new instance containing `File` object, whose name is randomly generated (by
-    /// UUID v4)
-    pub fn in_dir(dir_path: PathBuf) -> io::Result<TempFile> {
-        let file_path = dir_path.join(create_tmp_file_name("temp"));
-        TempFile::from_path(file_path)
-    }
-
-    /// Creates a new instance containing `File` object, whose path is randomly generated in
-    /// `env::temp_dir()`.
-    pub fn new() -> io::Result<TempFile> {
-        TempFile::in_dir(env::temp_dir())
     }
 
     /// Close temporary file.
@@ -114,11 +146,13 @@ fn create_tmp_file_name(prefix: impl Into<String>) -> String {
 mod tests {
     #[test]
     fn it_works() {
-        use TempFile;
+        use TempFileBuilder;
         let path;
 
         {
-            let temp_file = TempFile::new().expect("failed to instantiate TempFile.");
+            let temp_file = TempFileBuilder::new()
+                .build()
+                .expect("failed to instantiate TempFile.");
             let closed = temp_file.close();
             let temp_file = closed.reopen().expect("reopen failed.");
             path = temp_file.file_path().to_path_buf();
